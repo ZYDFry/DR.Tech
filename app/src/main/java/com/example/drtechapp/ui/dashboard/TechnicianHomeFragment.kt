@@ -22,13 +22,12 @@ class TechnicianHomeFragment : Fragment() {
     private var _binding: FragmentTechnicianHomeBinding? = null
     private val binding get() = _binding!!
 
-    // Compartido con la Activity para que otros fragments (Create/Detail) compartan estado
+    // Compartido con la Activity
     private val viewModel: TechViewModel by activityViewModels()
     private lateinit var adapter: RepairOrderAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Sin menú: no llamar setHasOptionsMenu
     }
 
     override fun onCreateView(
@@ -47,14 +46,18 @@ class TechnicianHomeFragment : Fragment() {
         setupFab()
         observeViewModel()
 
-        // Seleccionar tab Inicial (Pendientes)
+        // Seleccionar tab Inicial visualmente
         binding.tabLayout.getTabAt(0)?.select()
+
+        // --- CORRECCIÓN AQUÍ ---
+        // Forzamos la carga de datos inicial manualmente
+        // para que no aparezca la pantalla en blanco al entrar.
+        loadOrders(STATUS_PENDING)
     }
 
     private fun setupRecyclerView() {
         adapter = RepairOrderAdapter(
             onItemClick = { order ->
-                // Navegar al detalle (usa SafeArgs si está configurado)
                 val action = TechnicianHomeFragmentDirections
                     .actionTechnicianHomeToOrderDetail(order.id)
                 findNavController().navigate(action)
@@ -82,6 +85,8 @@ class TechnicianHomeFragment : Fragment() {
                     1 -> loadOrders(STATUS_WORKING)
                     2 -> loadOrders(STATUS_FINISHED)
                 }
+                // Actualizamos el mensaje de "Vacío" según la tab seleccionada
+                updateEmptyStateMessage(viewModel.isAdmin())
             }
 
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
@@ -91,7 +96,6 @@ class TechnicianHomeFragment : Fragment() {
 
     private fun setupFab() {
         binding.fabCreateOrder.setOnClickListener {
-            // Navegar a crear orden
             findNavController().navigate(R.id.action_technicianHome_to_createOrder)
         }
     }
@@ -99,9 +103,17 @@ class TechnicianHomeFragment : Fragment() {
     private fun observeViewModel() {
         viewModel.userRole.observe(viewLifecycleOwner) { role ->
             updateUIForRole(role)
+            // Opcional: Si cambia el rol, recargamos la lista actual para asegurar
+            val currentTab = binding.tabLayout.selectedTabPosition
+            val status = when(currentTab) {
+                1 -> STATUS_WORKING
+                2 -> STATUS_FINISHED
+                else -> STATUS_PENDING
+            }
+            loadOrders(status)
         }
 
-        viewModel.currentUserId.observe(viewLifecycleOwner) { /* solo almacenamos si hace falta */ }
+        viewModel.currentUserId.observe(viewLifecycleOwner) { /* ... */ }
 
         viewModel.userName.observe(viewLifecycleOwner) { name ->
             binding.tvWelcome.text = "Hola, ${name ?: "usuario"}"
@@ -111,6 +123,8 @@ class TechnicianHomeFragment : Fragment() {
             if (orders.isNullOrEmpty()) {
                 binding.emptyContainer.isVisible = true
                 binding.rvOrders.isVisible = false
+                // Actualizar mensaje de texto vacío
+                updateEmptyStateMessage(viewModel.isAdmin())
             } else {
                 binding.emptyContainer.isVisible = false
                 binding.rvOrders.isVisible = true
@@ -135,23 +149,21 @@ class TechnicianHomeFragment : Fragment() {
             ROLE_ADMIN -> {
                 binding.fabCreateOrder.isVisible = true
                 adapter.showAssignedTo = true
-                adapter.notifyDataSetChanged()
+                adapter.notifyDataSetChanged() // Refrescar para mostrar nombres
                 binding.tvTitle.text = "Panel de Administración"
-                updateEmptyStateMessage(true)
             }
             ROLE_TECHNICIAN -> {
                 binding.fabCreateOrder.isVisible = false
                 adapter.showAssignedTo = false
                 adapter.notifyDataSetChanged()
                 binding.tvTitle.text = "Mis Órdenes de Reparación"
-                updateEmptyStateMessage(false)
             }
             else -> {
                 binding.fabCreateOrder.isVisible = false
                 adapter.showAssignedTo = false
-                adapter.notifyDataSetChanged()
             }
         }
+        updateEmptyStateMessage(role == ROLE_ADMIN)
     }
 
     private fun updateEmptyStateMessage(isAdmin: Boolean) {
@@ -164,8 +176,8 @@ class TechnicianHomeFragment : Fragment() {
                 else -> "No hay órdenes"
             }
             else -> when (currentTab) {
-                0 -> "No hay órdenes disponibles para tomar"
-                1 -> "No tienes órdenes en reparación\nToma una orden de la pestaña Pendientes"
+                0 -> "No hay órdenes pendientes globales"
+                1 -> "No tienes órdenes asignadas\nVe a 'Pendientes' y toma una."
                 2 -> "No has terminado ninguna orden todavía"
                 else -> "No hay órdenes"
             }
@@ -178,10 +190,12 @@ class TechnicianHomeFragment : Fragment() {
 
         when {
             isAdmin -> viewModel.loadOrdersByStatus(status)
+            // Si es PENDIENTE, siempre cargamos la lista global (admin o técnico ven lo mismo)
             status == STATUS_PENDING -> viewModel.loadOrdersByStatus(STATUS_PENDING)
+            // Si es WORKING/FINISHED y es técnico, cargamos SUS órdenes
             userId != null -> viewModel.loadMyOrders(userId, status)
             else -> {
-                // No hay userId aún; intentar recargar perfil
+                // Si llegamos aquí y no hay UserID, intentamos cargar perfil de nuevo
                 viewModel.loadUserProfile()
             }
         }
