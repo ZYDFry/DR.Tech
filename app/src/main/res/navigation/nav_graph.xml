@@ -1,18 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
     app:startDestination="@id/loginFragment">
 
     <fragment
         android:id="@+id/loginFragment"
         android:name="com.example.drtechapp.ui.auth.LoginFragment"
-        android:label="fragment_login"
-        tools:layout="@layout/fragment_login">
-
+        android:label="Login">
         <action
-            android:id="@+id/action_loginFragment_to_technicianHome"
+            android:id="@+id/action_login_to_home"
             app:destination="@id/technicianHomeFragment"
             app:popUpTo="@id/loginFragment"
             app:popUpToInclusive="true" />
@@ -21,30 +18,29 @@
     <fragment
         android:id="@+id/technicianHomeFragment"
         android:name="com.example.drtechapp.ui.dashboard.TechnicianHomeFragment"
-        android:label="fragment_technician_home"
-        tools:layout="@layout/fragment_technician_home">
-
+        android:label="Home">
         <action
             android:id="@+id/action_technicianHome_to_createOrder"
             app:destination="@id/createOrderFragment" />
-
         <action
             android:id="@+id/action_technicianHome_to_orderDetail"
-            app:destination="@id/orderDetailFragment" />
+            app:destination="@id/orderDetailFragment">
+            <argument
+                android:name="orderId"
+                app:argType="string" />
+        </action>
     </fragment>
 
     <fragment
         android:id="@+id/createOrderFragment"
         android:name="com.example.drtechapp.ui.dashboard.CreateOrderFragment"
-        android:label="fragment_create_order"
-        tools:layout="@layout/fragment_create_order" />
+        android:label="Crear Orden" >
+    </fragment>
 
     <fragment
         android:id="@+id/orderDetailFragment"
-        android:name="com.example.drtechapp.ui.detail.OrdenDetailFragment"
-        android:label="fragment_order_detail"
-        tools:layout="@layout/fragment_orden_detail">
-
+        android:name="com.example.drtechapp.ui.detail.OrderDetailFragment"
+        android:label="Detalle Orden" >
         <argument
             android:name="orderId"
             app:argType="string" />
