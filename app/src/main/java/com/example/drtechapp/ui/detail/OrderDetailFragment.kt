@@ -64,7 +64,7 @@ class OrderDetailFragment : Fragment() {
             binding.tvAssignedTo.text = assignedName
 
             // Creador y Fecha
-            binding.tvCreatedBy.text = order.createdBy.ifBlank { "Desconocido" }
+            //binding.tvCreatedBy.text = order.createdBy.ifBlank { "Desconocido" }
             binding.tvCreatedAt.text = formatTimestamp(order.dateCreated)
 
 
@@ -94,6 +94,11 @@ class OrderDetailFragment : Fragment() {
 
             // --- ACTUALIZAR BOTONES ---
             updateButtons(order.status, order.assignedTechnicianId)
+        }
+        // --- NUEVO: Observar el NOMBRE del Creador ---
+        viewModel.orderCreatorName.observe(viewLifecycleOwner) { name ->
+            // Aquí es donde aparece "Juan Pérez" en vez del ID raro
+            binding.tvCreatedBy.text = "$name"
         }
 
         // 3. Observar carga (ProgressBar)
@@ -193,7 +198,8 @@ class OrderDetailFragment : Fragment() {
         return try {
             val date = Date(ms)
             val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-            sdf.format(date)
+            sdf.timeZone = TimeZone.getDefault()
+            return sdf.format(date)
         } catch (e: Exception) {
             ""
         }

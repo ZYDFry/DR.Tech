@@ -85,6 +85,7 @@ class TechnicianHomeFragment : Fragment() {
 
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
+                clearOrdersList()
                 when (tab?.position) {
                     0 -> loadOrders(STATUS_PENDING)
                     1 -> loadOrders(STATUS_WORKING)
@@ -231,5 +232,11 @@ class TechnicianHomeFragment : Fragment() {
             }
             .setNegativeButton("Cancelar", null)
             .show()
+    }
+    private fun clearOrdersList() {
+        binding.rvOrders.isVisible = false       // Ocultamos la lista
+        binding.emptyContainer.isVisible = false // Ocultamos avisos de vacío
+        binding.progressBar.isVisible = true     // Mostramos cargando
+        adapter.submitList(emptyList())          // Vaciamos los items del adaptador
     }
 }
