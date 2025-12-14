@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    app:cardElevation="2dp"
+    app:cardCornerRadius="8dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Header: ID + Estado -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tvOrderId"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#000000"
+                tools:text="#A1B2C3D4"/>
+
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:textColor="#FFFFFF"
+                tools:text="En Reparación"/>
+        </LinearLayout>
+
+        <!-- Dispositivo -->
+        <TextView
+            android:id="@+id/tvDeviceType"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#000000"
+            tools:text="iPhone 12 Pro"/>
+
+        <!-- Descripción del problema -->
+        <TextView
+            android:id="@+id/tvIssueDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textSize="13sp"
+            android:textColor="#757575"
+            android:maxLines="2"
+            android:ellipsize="end"
+            tools:text="Pantalla rota, necesita reemplazo urgente"/>
+
+        <!-- Ubicación en estante -->
+        <TextView
+            android:id="@+id/tvShelfLocation"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textSize="12sp"
+            android:textColor="#2196F3"
+            android:visibility="gone"
+            tools:visibility="visible"
+            tools:text="📍 B-12"/>
+
+        <!-- Técnico asignado (solo visible para Admin) -->
+        <TextView
+            android:id="@+id/tvAssignedTo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textSize="12sp"
+            android:textColor="#2196F3"
+            android:visibility="gone"
+            tools:visibility="visible"
+            tools:text="👤 Diego Zamudio"/>
+
+        <!-- Fecha de creación -->
+        <TextView
+            android:id="@+id/tvCreatedAt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textSize="11sp"
+            android:textColor="#9E9E9E"
+            tools:text="12/12/2024 15:45"/>
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "67332189540",
+    "project_id": "drtech-1120a",
+    "storage_bucket": "drtech-1120a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:67332189540:android:84c2aa46c00139bb16de71",
+        "android_client_info": {
+          "package_name": "com.example.appdrtech"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-9uO-MfcUXpL5qLbj5fL5bZwl-U_UW5c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:67332189540:android:b991824b2e810e6b16de71",
+        "android_client_info": {
+          "package_name": "com.example.drtechapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-9uO-MfcUXpL5qLbj5fL5bZwl-U_UW5c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

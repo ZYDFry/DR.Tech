@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/loginFragment">
+
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.example.drtechapp.ui.auth.LoginFragment"
+        android:label="fragment_login"
+        tools:layout="@layout/fragment_login">
+
+        <action
+            android:id="@+id/action_loginFragment_to_technicianHome"
+            app:destination="@id/technicianHomeFragment"
+            app:popUpTo="@id/loginFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/technicianHomeFragment"
+        android:name="com.example.drtechapp.ui.dashboard.TechnicianHomeFragment"
+        android:label="fragment_technician_home"
+        tools:layout="@layout/fragment_technician_home">
+
+        <action
+            android:id="@+id/action_technicianHome_to_createOrder"
+            app:destination="@id/createOrderFragment" />
+
+        <action
+            android:id="@+id/action_technicianHome_to_orderDetail"
+            app:destination="@id/orderDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/createOrderFragment"
+        android:name="com.example.drtechapp.ui.dashboard.CreateOrderFragment"
+        android:label="fragment_create_order"
+        tools:layout="@layout/fragment_create_order" />
+
+    <fragment
+        android:id="@+id/orderDetailFragment"
+        android:name="com.example.drtechapp.ui.detail.OrdenDetailFragment"
+        android:label="fragment_order_detail"
+        tools:layout="@layout/fragment_orden_detail">
+
+        <argument
+            android:name="orderId"
+            app:argType="string" />
+    </fragment>
+
+</navigation>
