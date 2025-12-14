@@ -1,5 +1,8 @@
 package com.example.drtechapp.viewmodel
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.util.Base64
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -9,7 +12,10 @@ import com.example.drtechapp.repository.AuthRepository
 import com.example.drtechapp.repository.WorkOrderRepository
 import com.example.drtechapp.utils.ROLE_ADMIN
 import com.example.drtechapp.utils.ROLE_TECHNICIAN
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 
 class TechViewModel : ViewModel() {
 
@@ -33,6 +39,10 @@ class TechViewModel : ViewModel() {
     // Orden individual (para detalle)
     private val _currentOrder = MutableLiveData<RepairOrder?>()
     val currentOrder: LiveData<RepairOrder?> = _currentOrder
+
+    // Nombre del CREADOR de la orden (separado del usuario actual)
+    private val _orderCreatorName = MutableLiveData<String?>()
+    val orderCreatorName: LiveData<String?> = _orderCreatorName
 
     // Estado de carga
     private val _isLoading = MutableLiveData<Boolean>()
@@ -71,7 +81,6 @@ class TechViewModel : ViewModel() {
                     _userRole.value = user.role
                     _userName.value = user.fullName
                     _isLoading.value = false
-                    // LOG DEBUG
                     android.util.Log.d("DEBUG_APP", "Usuario logueado: ${user.fullName} (${user.role})")
                 },
                 onFailure = { error ->
@@ -88,19 +97,15 @@ class TechViewModel : ViewModel() {
     fun loadOrdersByStatus(status: String) {
         viewModelScope.launch {
             _isLoading.value = true
-
-            // LOG DEBUG: INICIO
             android.util.Log.d("DEBUG_APP", "[Admin] Buscando órdenes con estado: $status")
 
             orderRepository.getOrdersByStatus(status).fold(
                 onSuccess = { ordersList ->
-                    // LOG DEBUG: ÉXITO
                     android.util.Log.d("DEBUG_APP", "[Admin] ¡Éxito! Encontradas: ${ordersList.size}")
                     _orders.value = ordersList
                     _isLoading.value = false
                 },
                 onFailure = { error ->
-                    // LOG DEBUG: ERROR
                     android.util.Log.e("DEBUG_APP", "[Admin] Error fatal: ${error.message}")
                     _errorMessage.value = "Error al cargar órdenes: ${error.message}"
                     _isLoading.value = false
@@ -111,24 +116,19 @@ class TechViewModel : ViewModel() {
 
     /**
      * Carga solo las órdenes asignadas a un técnico específico
-     * (para Técnicos que ven solo sus órdenes)
      */
     fun loadMyOrders(technicianId: String, status: String) {
         viewModelScope.launch {
             _isLoading.value = true
-
-            // LOG DEBUG: INICIO TÉCNICO
             android.util.Log.d("DEBUG_APP", "[Tech] Buscando MIS órdenes ($status) para ID: $technicianId")
 
             orderRepository.getOrdersByTechnicianAndStatus(technicianId, status).fold(
                 onSuccess = { ordersList ->
-                    // LOG DEBUG: ÉXITO TÉCNICO
                     android.util.Log.d("DEBUG_APP", "[Tech] ¡Éxito! Mis órdenes encontradas: ${ordersList.size}")
                     _orders.value = ordersList
                     _isLoading.value = false
                 },
                 onFailure = { error ->
-                    // LOG DEBUG: ERROR TÉCNICO
                     android.util.Log.e("DEBUG_APP", "[Tech] Error buscando mis órdenes: ${error.message}")
                     _errorMessage.value = "Error al cargar mis órdenes: ${error.message}"
                     _isLoading.value = false
@@ -138,15 +138,31 @@ class TechViewModel : ViewModel() {
     }
 
     /**
-     * Carga una orden específica por ID (para detalle)
+     * Carga una orden específica por ID y busca el nombre de quien la creó
      */
     fun loadOrderDetail(orderId: String) {
         viewModelScope.launch {
             _isLoading.value = true
+            _orderCreatorName.value = "Cargando..."
 
             orderRepository.getOrderById(orderId).fold(
                 onSuccess = { order ->
                     _currentOrder.value = order
+
+                    // Lógica para obtener el nombre del creador real
+                    if (order.createdBy.isNotEmpty()) {
+                        authRepository.getUserData(order.createdBy).fold(
+                            onSuccess = { user ->
+                                _orderCreatorName.value = user.fullName
+                            },
+                            onFailure = {
+                                _orderCreatorName.value = "Desconocido"
+                            }
+                        )
+                    } else {
+                        _orderCreatorName.value = "Sin asignar"
+                    }
+
                     _isLoading.value = false
                 },
                 onFailure = { error ->
@@ -158,84 +174,28 @@ class TechViewModel : ViewModel() {
     }
 
     /**
-     * Toma una orden pendiente (asigna al técnico actual)
-     */
-    fun takeOrder(orderId: String) {
-        val userId = _currentUserId.value ?: return
-
-        viewModelScope.launch {
-            _isLoading.value = true
-
-            orderRepository.takeOrder(orderId, userId).fold(
-                onSuccess = {
-                    _successMessage.value = "Orden tomada exitosamente"
-                    _isLoading.value = false
-                    loadOrderDetail(orderId)
-                },
-                onFailure = { error ->
-                    _errorMessage.value = error.message
-                    _isLoading.value = false
-                }
-            )
-        }
-    }
-
-    /**
-     * Finaliza una orden en reparación
-     */
-    fun finishOrder(orderId: String) {
-        viewModelScope.launch {
-            _isLoading.value = true
-
-            orderRepository.finishOrder(orderId).fold(
-                onSuccess = {
-                    _successMessage.value = "Orden finalizada exitosamente"
-                    _isLoading.value = false
-                    loadOrderDetail(orderId)
-                },
-                onFailure = { error ->
-                    _errorMessage.value = "Error al finalizar: ${error.message}"
-                    _isLoading.value = false
-                }
-            )
-        }
-    }
-
-    /**
-     * Devuelve una orden a estado pendiente (solo Admin)
-     */
-    fun returnToPending(orderId: String) {
-        viewModelScope.launch {
-            _isLoading.value = true
-
-            orderRepository.returnOrderToPending(orderId).fold(
-                onSuccess = {
-                    _successMessage.value = "Orden devuelta a pendiente"
-                    _isLoading.value = false
-                    loadOrderDetail(orderId)
-                },
-                onFailure = { error ->
-                    _errorMessage.value = "Error: ${error.message}"
-                    _isLoading.value = false
-                }
-            )
-        }
-    }
-
-    /**
-     * Crea una nueva orden (solo Admin)
+     * Crea una nueva orden procesando la imagen en segundo plano
+     * (Esta es la función MOVIDA desde el Fragmento)
      */
     fun createOrder(
         deviceModel: String,
         issueDescription: String,
         shelfLocation: String?,
-        photoBase64: String?
+        imageBytes: ByteArray?
     ) {
         val userId = _currentUserId.value ?: return
 
         viewModelScope.launch {
             _isLoading.value = true
 
+            // 1. Procesar la imagen (Si existe) en hilo secundario (IO)
+            val photoBase64 = if (imageBytes != null) {
+                processImageToBase64(imageBytes)
+            } else {
+                null
+            }
+
+            // 2. Enviar a Firebase
             orderRepository.createOrder(
                 deviceModel = deviceModel,
                 issueDescription = issueDescription,
@@ -255,10 +215,80 @@ class TechViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Función auxiliar para comprimir imagen
+     */
+    private suspend fun processImageToBase64(bytes: ByteArray): String {
+        return withContext(Dispatchers.Default) {
+            try {
+                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                val outputStream = ByteArrayOutputStream()
+                // Comprimir calidad 30
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 30, outputStream)
+                val compressedBytes = outputStream.toByteArray()
+                Base64.encodeToString(compressedBytes, Base64.DEFAULT)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                "" // Retornar vacío si falla
+            }
+        }
+    }
+
+    fun takeOrder(orderId: String) {
+        val userId = _currentUserId.value ?: return
+        viewModelScope.launch {
+            _isLoading.value = true
+            orderRepository.takeOrder(orderId, userId).fold(
+                onSuccess = {
+                    _successMessage.value = "Orden tomada exitosamente"
+                    _isLoading.value = false
+                    loadOrderDetail(orderId)
+                },
+                onFailure = { error ->
+                    _errorMessage.value = error.message
+                    _isLoading.value = false
+                }
+            )
+        }
+    }
+
+    fun finishOrder(orderId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            orderRepository.finishOrder(orderId).fold(
+                onSuccess = {
+                    _successMessage.value = "Orden finalizada exitosamente"
+                    _isLoading.value = false
+                    loadOrderDetail(orderId)
+                },
+                onFailure = { error ->
+                    _errorMessage.value = "Error al finalizar: ${error.message}"
+                    _isLoading.value = false
+                }
+            )
+        }
+    }
+
+    fun returnToPending(orderId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            orderRepository.returnOrderToPending(orderId).fold(
+                onSuccess = {
+                    _successMessage.value = "Orden devuelta a pendiente"
+                    _isLoading.value = false
+                    loadOrderDetail(orderId)
+                },
+                onFailure = { error ->
+                    _errorMessage.value = "Error: ${error.message}"
+                    _isLoading.value = false
+                }
+            )
+        }
+    }
+
     fun updateOrder(orderId: String, updates: Map<String, Any?>) {
         viewModelScope.launch {
             _isLoading.value = true
-
             orderRepository.updateOrder(orderId, updates).fold(
                 onSuccess = {
                     _successMessage.value = "Orden actualizada exitosamente"
@@ -273,16 +303,19 @@ class TechViewModel : ViewModel() {
         }
     }
 
-    fun isAdmin(): Boolean {
-        return _userRole.value == ROLE_ADMIN
-    }
-
-    fun isTechnician(): Boolean {
-        return _userRole.value == ROLE_TECHNICIAN
-    }
+    fun isAdmin(): Boolean = _userRole.value == ROLE_ADMIN
+    fun isTechnician(): Boolean = _userRole.value == ROLE_TECHNICIAN
 
     fun clearMessages() {
         _errorMessage.value = null
         _successMessage.value = null
+    }
+    fun logout() {
+        // Opción A: Si tu AuthRepository ya tiene logout
+        authRepository.logout()
+        // Limpiamos las variables para que no queden datos viejos
+        _currentUserId.value = null
+        _userRole.value = null
+        _userName.value = null
     }
 }

@@ -53,6 +53,11 @@ class TechnicianHomeFragment : Fragment() {
         // Forzamos la carga de datos inicial manualmente
         // para que no aparezca la pantalla en blanco al entrar.
         loadOrders(STATUS_PENDING)
+
+        // --- NUEVO: Configurar el botón de Salir ---
+        binding.btnLogout.setOnClickListener {
+            showLogoutConfirmation()
+        }
     }
 
     private fun setupRecyclerView() {
@@ -204,5 +209,27 @@ class TechnicianHomeFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private fun showLogoutConfirmation() {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Cerrar Sesión")
+            .setMessage("¿Estás seguro de que quieres salir?")
+            .setPositiveButton("Sí, salir") { _, _ ->
+                // 1. Decirle al ViewModel que cierre sesión
+                viewModel.logout()
+
+                // 2. Navegar a la pantalla de Login
+                // (Asegúrate de que 'loginFragment' sea el ID correcto en tu nav_graph)
+                findNavController().navigate(
+                    R.id.action_technicianHome_to_loginFragment,
+                    null,
+                    androidx.navigation.NavOptions.Builder()
+                        .setPopUpTo(R.id.technicianHomeFragment, true) // Borra el historial para no poder volver atrás
+                        .build()
+                )
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
     }
 }

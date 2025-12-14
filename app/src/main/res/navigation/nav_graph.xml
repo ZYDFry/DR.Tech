@@ -29,6 +29,13 @@
                 android:name="orderId"
                 app:argType="string" />
         </action>
+
+        <action
+            android:id="@+id/action_technicianHome_to_loginFragment"
+            app:destination="@id/loginFragment"
+            app:popUpTo="@id/nav_graph"
+            app:popUpToInclusive="true" />
+
     </fragment>
 
     <fragment

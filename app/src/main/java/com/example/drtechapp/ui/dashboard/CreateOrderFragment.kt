@@ -2,9 +2,7 @@ package com.example.drtechapp.ui.dashboard
 
 import android.Manifest
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Bundle
-import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -15,28 +13,26 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
 import com.example.drtechapp.databinding.FragmentCreateOrderBinding
-import com.example.drtechapp.repository.WorkOrderRepository
 import com.example.drtechapp.viewmodel.TechViewModel
-import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
 
 class CreateOrderFragment : Fragment() {
 
     private var _binding: FragmentCreateOrderBinding? = null
     private val binding get() = _binding!!
-    private val viewModel: TechViewModel by activityViewModels()
 
-    // Repositorio
-    private val workOrderRepo = WorkOrderRepository()
+    // Conexión con el ViewModel compartido
+    private val viewModel: TechViewModel by activityViewModels()
 
     // Imagen seleccionada (en bytes)
     private var selectedImageBytes: ByteArray? = null
 
-    // Launcher Galería
+    // --- LAUNCHERS DE IMAGEN ---
+
+    // 1. Galería
     private val pickImageLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
@@ -49,37 +45,31 @@ class CreateOrderFragment : Fragment() {
                     selectedImageBytes = bytes
                     binding.ivPreview.isVisible = true
                     Glide.with(requireContext()).load(it).into(binding.ivPreview)
-                } else {
-                    Toast.makeText(requireContext(), "Error al leer imagen", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Error al leer imagen: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(requireContext(), "Error imagen", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    // Launcher Permiso Cámara
+    // 2. Permiso Cámara
     private val requestCameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (granted) {
-            takePicturePreviewLauncher.launch(null)
-        } else {
-            Toast.makeText(requireContext(), "Permiso de cámara denegado", Toast.LENGTH_SHORT).show()
-        }
+        if (granted) takePicturePreviewLauncher.launch(null)
+        else Toast.makeText(requireContext(), "Permiso denegado", Toast.LENGTH_SHORT).show()
     }
 
-    // Launcher Tomar Foto
+    // 3. Tomar Foto
     private val takePicturePreviewLauncher = registerForActivityResult(
         ActivityResultContracts.TakePicturePreview()
     ) { bitmap: Bitmap? ->
         bitmap?.let {
             val stream = ByteArrayOutputStream()
-            // Compresión inicial para visualización
+            // Compresión visual (para mostrar en pantalla solamente)
             it.compress(Bitmap.CompressFormat.JPEG, 85, stream)
             selectedImageBytes = stream.toByteArray()
             stream.close()
-
             binding.ivPreview.isVisible = true
             binding.ivPreview.setImageBitmap(it)
         }
@@ -96,15 +86,10 @@ class CreateOrderFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        binding.btnAddPhoto.isVisible = true
-        binding.ivPreview.isVisible = false
-
-        binding.btnAddPhoto.setOnClickListener {
-            showPhotoChoiceDialog()
-        }
+        binding.btnAddPhoto.setOnClickListener { showPhotoChoiceDialog() }
 
         binding.btnCreateOrder.setOnClickListener {
-            createOrder()
+            sendToViewModel()
         }
 
         observeViewModel()
@@ -112,112 +97,61 @@ class CreateOrderFragment : Fragment() {
 
     private fun showPhotoChoiceDialog() {
         val options = arrayOf("Elegir de la galería", "Tomar foto con cámara", "Quitar foto")
-        val builder = AlertDialog.Builder(requireContext())
-            .setTitle("Agregar imagen")
-            .setAdapter(ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, options)) { dialog, which ->
-                when (which) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Imagen")
+            .setAdapter(ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, options)) { d, i ->
+                when (i) {
                     0 -> pickImageLauncher.launch("image/*")
                     1 -> requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                     2 -> {
                         selectedImageBytes = null
-                        binding.ivPreview.setImageDrawable(null)
                         binding.ivPreview.isVisible = false
                     }
                 }
-                dialog.dismiss()
+                d.dismiss()
             }
-        builder.show()
+            .show()
     }
 
-    /**
-     * Convierte la imagen a Base64 comprimido para evitar errores de tamaño en Firestore
-     */
-    private fun processImageToBase64(bytes: ByteArray): String {
-        // 1. Decodificar bytes a Bitmap
-        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-
-        // 2. Comprimir fuertemente (Calidad 30) para asegurar que pese menos de 1MB
-        val outputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 30, outputStream)
-        val compressedBytes = outputStream.toByteArray()
-
-        // 3. Convertir a Base64 String
-        return Base64.encodeToString(compressedBytes, Base64.DEFAULT)
-    }
-
-    private fun createOrder() {
+    private fun sendToViewModel() {
         val device = binding.etDeviceModel.text.toString().trim()
         val description = binding.etIssueDescription.text.toString().trim()
         val shelf = binding.etShelf.text.toString().trim().ifBlank { null }
 
         if (device.isBlank() || description.isBlank()) {
-            Toast.makeText(requireContext(), "Completa dispositivo y descripción", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Falta dispositivo o descripción", Toast.LENGTH_SHORT).show()
             return
         }
 
-        binding.btnCreateOrder.isEnabled = false
-        binding.progressBar.visibility = View.VISIBLE
-
-        lifecycleScope.launch {
-            // 1. Procesar imagen si existe
-            var photoBase64Data: String? = null
-            if (selectedImageBytes != null) {
-                try {
-                    photoBase64Data = processImageToBase64(selectedImageBytes!!)
-                } catch (e: Exception) {
-                    onCreateFailure("Error procesando imagen: ${e.message}")
-                    return@launch
-                }
-            }
-
-            // 2. Llamar al repositorio
-            val created = workOrderRepo.createOrder(
-                deviceModel = device,
-                issueDescription = description,
-                shelfLocation = shelf,
-
-                // --- CORRECCIÓN AQUÍ: Usamos el nombre correcto del parámetro ---
-                photoBase64 = photoBase64Data,
-                // ---------------------------------------------------------------
-
-                createdBy = viewModel.currentUserId.value ?: ""
-            )
-
-            created.fold(onSuccess = { orderId ->
-                onCreateSuccess(orderId)
-            }, onFailure = { err ->
-                onCreateFailure("Error al crear orden: ${err.message}")
-            })
-        }
-    }
-
-    private fun onCreateSuccess(orderId: String) {
-        lifecycleScope.launch {
-            binding.progressBar.visibility = View.GONE
-            binding.btnCreateOrder.isEnabled = true
-            Toast.makeText(requireContext(), "Orden creada (con foto local)", Toast.LENGTH_SHORT).show()
-            findNavController().popBackStack()
-        }
-    }
-
-    private fun onCreateFailure(message: String?) {
-        lifecycleScope.launch {
-            binding.progressBar.visibility = View.GONE
-            binding.btnCreateOrder.isEnabled = true
-            Toast.makeText(requireContext(), message ?: "Error", Toast.LENGTH_LONG).show()
-        }
+        // Delegamos todo el trabajo al ViewModel
+        viewModel.createOrder(
+            deviceModel = device,
+            issueDescription = description,
+            shelfLocation = shelf,
+            imageBytes = selectedImageBytes
+        )
     }
 
     private fun observeViewModel() {
-        viewModel.errorMessage.observe(viewLifecycleOwner) { err ->
-            err?.let {
-                Toast.makeText(requireContext(), it, Toast.LENGTH_LONG).show()
+        // Observar carga (Spinner y bloquear botón)
+        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            binding.progressBar.isVisible = loading
+            binding.btnCreateOrder.isEnabled = !loading
+        }
+
+        // Observar éxito
+        viewModel.successMessage.observe(viewLifecycleOwner) { msg ->
+            if (msg != null && msg.contains("Orden creada", ignoreCase = true)) {
+                Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
                 viewModel.clearMessages()
+                findNavController().popBackStack() // Cerrar pantalla
             }
         }
-        viewModel.successMessage.observe(viewLifecycleOwner) { msg ->
-            msg?.let {
-                Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
+
+        // Observar error
+        viewModel.errorMessage.observe(viewLifecycleOwner) { err ->
+            if (err != null) {
+                Toast.makeText(requireContext(), err, Toast.LENGTH_LONG).show()
                 viewModel.clearMessages()
             }
         }
