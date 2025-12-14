@@ -5,8 +5,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.viewModels
+import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.drtechapp.R
@@ -16,20 +17,22 @@ import com.example.drtechapp.utils.*
 import com.example.drtechapp.viewmodel.TechViewModel
 import com.google.android.material.tabs.TabLayout
 
-class TechnicianHomeFragment  : Fragment() {
+class TechnicianHomeFragment : Fragment() {
 
     private var _binding: FragmentTechnicianHomeBinding? = null
     private val binding get() = _binding!!
 
-    private val viewModel: TechViewModel by viewModels()
+    // Compartido con la Activity para que otros fragments (Create/Detail) compartan estado
+    private val viewModel: TechViewModel by activityViewModels()
     private lateinit var adapter: RepairOrderAdapter
 
-    private var currentUserRole: String? = null
-    private var currentUserId: String? = null
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Sin menú: no llamar setHasOptionsMenu
+    }
 
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
+        inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentTechnicianHomeBinding.inflate(inflater, container, false)
@@ -41,22 +44,22 @@ class TechnicianHomeFragment  : Fragment() {
 
         setupRecyclerView()
         setupTabs()
-        setupFAB()
+        setupFab()
         observeViewModel()
 
-        // Cargar órdenes pendientes por defecto
+        // Seleccionar tab Inicial (Pendientes)
         binding.tabLayout.getTabAt(0)?.select()
     }
 
     private fun setupRecyclerView() {
         adapter = RepairOrderAdapter(
             onItemClick = { order ->
-                // Navegar al detalle de la orden
+                // Navegar al detalle (usa SafeArgs si está configurado)
                 val action = TechnicianHomeFragmentDirections
                     .actionTechnicianHomeToOrderDetail(order.id)
                 findNavController().navigate(action)
             },
-            showAssignedTo = false // Se actualizará según el rol
+            showAssignedTo = false
         )
 
         binding.rvOrders.apply {
@@ -66,7 +69,6 @@ class TechnicianHomeFragment  : Fragment() {
     }
 
     private fun setupTabs() {
-        // Agregar tabs con constantes
         binding.tabLayout.apply {
             addTab(newTab().setText("🔴 Pendientes"))
             addTab(newTab().setText("🔵 En Reparación"))
@@ -87,50 +89,41 @@ class TechnicianHomeFragment  : Fragment() {
         })
     }
 
-    private fun setupFAB() {
-        // El FAB se mostrará/ocultará según el rol
+    private fun setupFab() {
         binding.fabCreateOrder.setOnClickListener {
+            // Navegar a crear orden
             findNavController().navigate(R.id.action_technicianHome_to_createOrder)
         }
     }
 
     private fun observeViewModel() {
-        // Observar rol del usuario
         viewModel.userRole.observe(viewLifecycleOwner) { role ->
-            currentUserRole = role
             updateUIForRole(role)
         }
 
-        // Observar ID del usuario
-        viewModel.currentUserId.observe(viewLifecycleOwner) { userId ->
-            currentUserId = userId
-        }
+        viewModel.currentUserId.observe(viewLifecycleOwner) { /* solo almacenamos si hace falta */ }
 
-        // Observar nombre del usuario
         viewModel.userName.observe(viewLifecycleOwner) { name ->
-            binding.tvWelcome.text = "Hola, $name"
+            binding.tvWelcome.text = "Hola, ${name ?: "usuario"}"
         }
 
-        // Observar órdenes
         viewModel.orders.observe(viewLifecycleOwner) { orders ->
-            if (orders.isEmpty()) {
-                binding.tvEmptyState.visibility = View.VISIBLE
-                binding.rvOrders.visibility = View.GONE
+            if (orders.isNullOrEmpty()) {
+                binding.emptyContainer.isVisible = true
+                binding.rvOrders.isVisible = false
             } else {
-                binding.tvEmptyState.visibility = View.GONE
-                binding.rvOrders.visibility = View.VISIBLE
+                binding.emptyContainer.isVisible = false
+                binding.rvOrders.isVisible = true
                 adapter.submitList(orders)
             }
         }
 
-        // Observar estado de carga
-        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            binding.progressBar.isVisible = loading
         }
 
-        // Observar mensajes de error
-        viewModel.errorMessage.observe(viewLifecycleOwner) { message ->
-            message?.let {
+        viewModel.errorMessage.observe(viewLifecycleOwner) { msg ->
+            msg?.let {
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
                 viewModel.clearMessages()
             }
@@ -140,58 +133,29 @@ class TechnicianHomeFragment  : Fragment() {
     private fun updateUIForRole(role: String?) {
         when (role) {
             ROLE_ADMIN -> {
-                // Admin puede crear órdenes
-                binding.fabCreateOrder.visibility = View.VISIBLE
-
-                // Admin ve quién está asignado a cada orden
+                binding.fabCreateOrder.isVisible = true
                 adapter.showAssignedTo = true
-
-                // Cambiar título
+                adapter.notifyDataSetChanged()
                 binding.tvTitle.text = "Panel de Administración"
-
-                // Actualizar mensaje de estado vacío
-                updateEmptyStateMessage(isAdmin = true)
+                updateEmptyStateMessage(true)
             }
             ROLE_TECHNICIAN -> {
-                // Técnico NO puede crear órdenes
-                binding.fabCreateOrder.visibility = View.GONE
-
-                // Técnico NO ve asignaciones de otros
+                binding.fabCreateOrder.isVisible = false
                 adapter.showAssignedTo = false
-
-                // Cambiar título
+                adapter.notifyDataSetChanged()
                 binding.tvTitle.text = "Mis Órdenes de Reparación"
-
-                updateEmptyStateMessage(isAdmin = false)
-            }
-        }
-    }
-
-    private fun loadOrders(status: String) {
-        val isAdmin = currentUserRole == ROLE_ADMIN
-        val userId = currentUserId ?: return
-
-        when {
-            // Admin ve TODAS las órdenes de cualquier estado
-            isAdmin -> {
-                viewModel.loadOrdersByStatus(status)
-            }
-            // Técnico ve:
-            // - Pendientes: todas (para poder tomarlas)
-            // - En Reparación: solo las suyas
-            // - Terminadas: solo las suyas
-            status == STATUS_PENDING -> {
-                viewModel.loadOrdersByStatus(STATUS_PENDING)
+                updateEmptyStateMessage(false)
             }
             else -> {
-                viewModel.loadMyOrders(userId, status)
+                binding.fabCreateOrder.isVisible = false
+                adapter.showAssignedTo = false
+                adapter.notifyDataSetChanged()
             }
         }
     }
 
     private fun updateEmptyStateMessage(isAdmin: Boolean) {
         val currentTab = binding.tabLayout.selectedTabPosition
-
         binding.tvEmptyState.text = when {
             isAdmin -> when (currentTab) {
                 0 -> "No hay órdenes pendientes\nCrea una nueva orden con el botón +"
@@ -204,6 +168,21 @@ class TechnicianHomeFragment  : Fragment() {
                 1 -> "No tienes órdenes en reparación\nToma una orden de la pestaña Pendientes"
                 2 -> "No has terminado ninguna orden todavía"
                 else -> "No hay órdenes"
+            }
+        }
+    }
+
+    private fun loadOrders(status: String) {
+        val isAdmin = viewModel.isAdmin()
+        val userId = viewModel.currentUserId.value
+
+        when {
+            isAdmin -> viewModel.loadOrdersByStatus(status)
+            status == STATUS_PENDING -> viewModel.loadOrdersByStatus(STATUS_PENDING)
+            userId != null -> viewModel.loadMyOrders(userId, status)
+            else -> {
+                // No hay userId aún; intentar recargar perfil
+                viewModel.loadUserProfile()
             }
         }
     }

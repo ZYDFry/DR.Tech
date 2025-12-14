@@ -10,14 +10,11 @@ import com.example.drtechapp.utils.STATUS_WORKING
 import com.example.drtechapp.utils.UserFields
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
-import java.util.UUID
-
 class WorkOrderRepository {
 
     private val firestore = FirebaseFirestore.getInstance()
-    private val storage = FirebaseStorage.getInstance()
+    // private val storage = FirebaseStorage.getInstance() // No longer needed
     private val ordersCollection = firestore.collection(COLL_ORDERS)
     private val usersCollection = firestore.collection(COLL_USERS)
 
@@ -151,21 +148,22 @@ class WorkOrderRepository {
 
     /**
      * Crea una nueva orden (solo Admin)
+     * MODIFICADO: Ahora acepta photoBase64 en lugar de photoUrl
      */
     suspend fun createOrder(
         deviceModel: String,
         issueDescription: String,
         shelfLocation: String?,
-        photoUrl: String?,
+        photoBase64: String?, // <-- CAMBIO AQUÍ: Recibimos el string largo
         createdBy: String
     ): Result<String> {
         return try {
-            // Usar constantes para los campos
             val orderData = hashMapOf(
                 OrderFields.DEVICE_MODEL to deviceModel,
                 OrderFields.ISSUE_DESCRIPTION to issueDescription,
                 OrderFields.SHELF_LOCATION to (shelfLocation ?: ""),
-                OrderFields.PHOTO_URL to (photoUrl ?: ""),
+                // Guardamos el base64 en un campo específico
+                "photo_base64" to (photoBase64 ?: ""),
                 OrderFields.CREATED_BY to createdBy,
                 OrderFields.STATUS to STATUS_PENDING,
                 OrderFields.DATE_CREATED to System.currentTimeMillis(),
@@ -208,24 +206,6 @@ class WorkOrderRepository {
                 ?: throw Exception("Orden no encontrada")
 
             Result.success(order)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Sube una imagen a Firebase Storage y devuelve la URL
-     */
-    suspend fun uploadOrderImage(orderId: String, imageBytes: ByteArray): Result<String> {
-        return try {
-            val imageId = UUID.randomUUID().toString()
-            val imagePath = "orders/$orderId/$imageId.jpg"
-            val storageRef = storage.reference.child(imagePath)
-
-            storageRef.putBytes(imageBytes).await()
-            val downloadUrl = storageRef.downloadUrl.await()
-
-            Result.success(downloadUrl.toString())
         } catch (e: Exception) {
             Result.failure(e)
         }

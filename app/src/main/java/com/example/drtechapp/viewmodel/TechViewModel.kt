@@ -71,6 +71,8 @@ class TechViewModel : ViewModel() {
                     _userRole.value = user.role
                     _userName.value = user.fullName
                     _isLoading.value = false
+                    // LOG DEBUG
+                    android.util.Log.d("DEBUG_APP", "Usuario logueado: ${user.fullName} (${user.role})")
                 },
                 onFailure = { error ->
                     _errorMessage.value = "Error al cargar perfil: ${error.message}"
@@ -87,12 +89,19 @@ class TechViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
 
+            // LOG DEBUG: INICIO
+            android.util.Log.d("DEBUG_APP", "[Admin] Buscando órdenes con estado: $status")
+
             orderRepository.getOrdersByStatus(status).fold(
                 onSuccess = { ordersList ->
+                    // LOG DEBUG: ÉXITO
+                    android.util.Log.d("DEBUG_APP", "[Admin] ¡Éxito! Encontradas: ${ordersList.size}")
                     _orders.value = ordersList
                     _isLoading.value = false
                 },
                 onFailure = { error ->
+                    // LOG DEBUG: ERROR
+                    android.util.Log.e("DEBUG_APP", "[Admin] Error fatal: ${error.message}")
                     _errorMessage.value = "Error al cargar órdenes: ${error.message}"
                     _isLoading.value = false
                 }
@@ -108,12 +117,19 @@ class TechViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
 
+            // LOG DEBUG: INICIO TÉCNICO
+            android.util.Log.d("DEBUG_APP", "[Tech] Buscando MIS órdenes ($status) para ID: $technicianId")
+
             orderRepository.getOrdersByTechnicianAndStatus(technicianId, status).fold(
                 onSuccess = { ordersList ->
+                    // LOG DEBUG: ÉXITO TÉCNICO
+                    android.util.Log.d("DEBUG_APP", "[Tech] ¡Éxito! Mis órdenes encontradas: ${ordersList.size}")
                     _orders.value = ordersList
                     _isLoading.value = false
                 },
                 onFailure = { error ->
+                    // LOG DEBUG: ERROR TÉCNICO
+                    android.util.Log.e("DEBUG_APP", "[Tech] Error buscando mis órdenes: ${error.message}")
                     _errorMessage.value = "Error al cargar mis órdenes: ${error.message}"
                     _isLoading.value = false
                 }
@@ -154,7 +170,6 @@ class TechViewModel : ViewModel() {
                 onSuccess = {
                     _successMessage.value = "Orden tomada exitosamente"
                     _isLoading.value = false
-                    // Recargar la orden actual si estamos en detalle
                     loadOrderDetail(orderId)
                 },
                 onFailure = { error ->
@@ -176,7 +191,6 @@ class TechViewModel : ViewModel() {
                 onSuccess = {
                     _successMessage.value = "Orden finalizada exitosamente"
                     _isLoading.value = false
-                    // Recargar la orden actual
                     loadOrderDetail(orderId)
                 },
                 onFailure = { error ->
@@ -198,7 +212,6 @@ class TechViewModel : ViewModel() {
                 onSuccess = {
                     _successMessage.value = "Orden devuelta a pendiente"
                     _isLoading.value = false
-                    // Recargar la orden actual
                     loadOrderDetail(orderId)
                 },
                 onFailure = { error ->
@@ -216,7 +229,7 @@ class TechViewModel : ViewModel() {
         deviceModel: String,
         issueDescription: String,
         shelfLocation: String?,
-        photoUrl: String?
+        photoBase64: String?
     ) {
         val userId = _currentUserId.value ?: return
 
@@ -227,7 +240,7 @@ class TechViewModel : ViewModel() {
                 deviceModel = deviceModel,
                 issueDescription = issueDescription,
                 shelfLocation = shelfLocation,
-                photoUrl = photoUrl,
+                photoBase64 = photoBase64,
                 createdBy = userId
             ).fold(
                 onSuccess = { orderId ->
@@ -242,9 +255,6 @@ class TechViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Actualiza una orden existente (solo Admin)
-     */
     fun updateOrder(orderId: String, updates: Map<String, Any?>) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -253,7 +263,6 @@ class TechViewModel : ViewModel() {
                 onSuccess = {
                     _successMessage.value = "Orden actualizada exitosamente"
                     _isLoading.value = false
-                    // Recargar la orden
                     loadOrderDetail(orderId)
                 },
                 onFailure = { error ->
@@ -264,23 +273,14 @@ class TechViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Verifica si el usuario actual es Admin
-     */
     fun isAdmin(): Boolean {
         return _userRole.value == ROLE_ADMIN
     }
 
-    /**
-     * Verifica si el usuario actual es Técnico
-     */
     fun isTechnician(): Boolean {
         return _userRole.value == ROLE_TECHNICIAN
     }
 
-    /**
-     * Limpia mensajes de error/éxito
-     */
     fun clearMessages() {
         _errorMessage.value = null
         _successMessage.value = null
