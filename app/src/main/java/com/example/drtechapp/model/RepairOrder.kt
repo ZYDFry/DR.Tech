@@ -21,6 +21,7 @@ data class RepairOrder(
     val assignedTechnicianId: String? = null,
     val assignedTechnicianName: String? = null,
     val createdBy: String = "",
+    val createdByName: String = "",
 
     val dateCreated: Long = 0L,
     val dateStarted: Long? = null,

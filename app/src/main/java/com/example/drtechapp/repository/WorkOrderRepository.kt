@@ -155,7 +155,8 @@ class WorkOrderRepository {
         issueDescription: String,
         shelfLocation: String?,
         photoBase64: String?, // <-- CAMBIO AQUÍ: Recibimos el string largo
-        createdBy: String
+        createdBy: String,
+        createdByName: String
     ): Result<String> {
         return try {
             val orderData = hashMapOf(
@@ -165,6 +166,7 @@ class WorkOrderRepository {
                 // Guardamos el base64 en un campo específico
                 "photo_base64" to (photoBase64 ?: ""),
                 OrderFields.CREATED_BY to createdBy,
+                "createdByName" to createdByName,
                 OrderFields.STATUS to STATUS_PENDING,
                 OrderFields.DATE_CREATED to System.currentTimeMillis(),
                 OrderFields.ASSIGNED_TECHNICIAN_ID to null,

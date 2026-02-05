@@ -150,7 +150,7 @@ class TechViewModel : ViewModel() {
                     _currentOrder.value = order
 
                     // Lógica para obtener el nombre del creador real
-                    if (order.createdBy.isNotEmpty()) {
+                    if (order.createdByName.isNotEmpty()) {
                         authRepository.getUserData(order.createdBy).fold(
                             onSuccess = { user ->
                                 _orderCreatorName.value = user.fullName
@@ -184,6 +184,7 @@ class TechViewModel : ViewModel() {
         imageBytes: ByteArray?
     ) {
         val userId = _currentUserId.value ?: return
+        val nameToSend = _userName.value ?: return
 
         viewModelScope.launch {
             _isLoading.value = true
@@ -201,7 +202,8 @@ class TechViewModel : ViewModel() {
                 issueDescription = issueDescription,
                 shelfLocation = shelfLocation,
                 photoBase64 = photoBase64,
-                createdBy = userId
+                createdBy = userId,
+                createdByName = nameToSend
             ).fold(
                 onSuccess = { orderId ->
                     _successMessage.value = "Orden creada: #${orderId.take(8)}"

@@ -1,5 +1,6 @@
 package com.example.drtechapp.ui.adapter
 
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -107,6 +108,25 @@ class RepairOrderAdapter(
                 binding.tvAssignedTo.visibility = View.VISIBLE
                 binding.tvAssignedTo.text = "👤 ${order.assignedTechnicianName ?: "No asignado"}"
             } else {
+                binding.tvAssignedTo.visibility = View.GONE
+            }
+            val techName = order.assignedTechnicianName
+            val creatorName = order.createdByName // Asegúrate de tener este campo en tu modelo
+
+            if (!techName.isNullOrBlank()) {
+                // CASO 1: Hay técnico (En Proceso / Terminada) -> Color VERDE
+                binding.tvAssignedTo.visibility = View.VISIBLE
+                binding.tvAssignedTo.text = "👤 $techName"
+                binding.tvAssignedTo.setTextColor(Color .parseColor("#4CAF50"))
+            }
+            else if (!creatorName.isNullOrBlank()) {
+                // CASO 2: Pendiente (Sin técnico) -> Color GRIS
+                binding.tvAssignedTo.visibility = View.VISIBLE
+                binding.tvAssignedTo.text = "📝 Creado por: $creatorName"
+                binding.tvAssignedTo.setTextColor(Color.GRAY)
+            }
+            else {
+                // CASO 3: Nada que mostrar
                 binding.tvAssignedTo.visibility = View.GONE
             }
         }

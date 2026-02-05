@@ -43,6 +43,7 @@ class CreateOrderFragment : Fragment() {
                 input?.close()
                 if (bytes != null) {
                     selectedImageBytes = bytes
+                    binding.cardPreview.isVisible = true
                     binding.ivPreview.isVisible = true
                     Glide.with(requireContext()).load(it).into(binding.ivPreview)
                 }
@@ -70,6 +71,7 @@ class CreateOrderFragment : Fragment() {
             it.compress(Bitmap.CompressFormat.JPEG, 85, stream)
             selectedImageBytes = stream.toByteArray()
             stream.close()
+            binding.cardPreview.isVisible = true
             binding.ivPreview.isVisible = true
             binding.ivPreview.setImageBitmap(it)
         }
@@ -105,6 +107,7 @@ class CreateOrderFragment : Fragment() {
                     1 -> requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                     2 -> {
                         selectedImageBytes = null
+                        binding.ivPreview.setImageDrawable(null)
                         binding.ivPreview.isVisible = false
                     }
                 }
